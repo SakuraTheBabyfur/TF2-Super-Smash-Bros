@@ -50,7 +50,7 @@ float respawn[MAXPLAYERS+1];
 int bHasDiedThisFrame[MAXPLAYERSCUSTOM];
 
 int p_properties[MAXPLAYERSCUSTOM][SBPlayerProp];
-
+new scoreArray[MAXPLAYERS+1] = {0,...};
 //new bool:started=false;
 bool playing=false;
 
@@ -134,6 +134,12 @@ public OnPluginStart()
 	if (LibraryExists("updater"))
 	{
 		Updater_AddPlugin(UPDATE_URL);
+	}
+	new playerresource = -1;
+	playerresource = FindEntityByClassname(playerresource, "tf_player_manager");
+	if (playerresource != INVALID_ENT_REFERENCE) 
+	{
+		SDKHook(playerresource, SDKHook_ThinkPost, Hook_OnThinkPost);
 	}
 }
 
@@ -236,6 +242,10 @@ public Action:teamplay_round_start(Handle:event,  const String:name[], bool:dont
 public Action teamplay_round_active(Handle event,  char[] name, bool dontBroadcast) {
 	playing=true;
 	CountDownTimer = GetTime() + RoundToFloor(GetConVarFloat(sb_round_time));
+	LoopMaxClients(target)
+	{
+	    scoreArray[target]=SB_GetPlayerProp(target,iLives);
+	}
 }
 
 public Action teamplay_round_win(Handle event,  char[] name, bool dontBroadcast) {
@@ -388,6 +398,9 @@ public Action SB_PlayerDeathEvent(Handle event,  char[] name, bool dontBroadcast
 		return Plugin_Handled;
 	}
 	bHasDiedThisFrame[victimIndex]++;
+	new victimID = GetEventInt(event, "victim");
+	new victim = GetClientOfUserId(victim);
+	scoreArray[victim]=scoreArray[victim]-1;
 	//lastly
 	//DP("died? %d",bHasDiedThisFrame[victimIndex]);
 	if(victimIndex&&!deadringereath) //forward to all other plugins last
@@ -422,7 +435,15 @@ public Native_SB_GetCountDownTimer(Handle:plugin,numParams)
 {
 	return CountDownTimer;
 }
-
+public Hook_OnThinkPost(iEnt)
+{
+	static iTotalScoreOffset = -1;
+	if (iTotalScoreOffset == -1) 
+	{
+		iTotalScoreOffset = FindSendPropInfo("CTFPlayerResource", "m_iTotalScore");
+	}
+	SetEntDataArray(iEnt, iTotalScoreOffset, scoreArray, MaxClients+1);
+}
 TriggerEvent()
 {
 	playing = false;
